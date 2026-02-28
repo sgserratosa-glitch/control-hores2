@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Horas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container { max-width: 1800px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title { font-size: 24px; font-weight: 600; color: #2c3e50; }
+        .user-badge { background: #667eea; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 500; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e0; }
+        .btn-small { padding: 6px 12px; font-size: 13px; }
+
+        /* Login */
+        .login-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-buttons { display: grid; gap: 15px; margin-top: 20px; }
+
+        .month-selector {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .month-selector select {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 150px;
+            cursor: pointer;
+        }
+
+        .total-badge {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .excel-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .excel-toolbar {
+            background: #f7fafc;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .table-wrapper { overflow-x: auto; max-height: 70vh; }
+
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .excel-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .excel-table th {
+            background: #9ae6b4;
+            color: #1a202c;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid #68d391;
+            white-space: nowrap;
+        }
+
+        .excel-table td {
+            padding: 2px 4px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            height: 20px;
+        }
+
+        .excel-table input,
+        .excel-table select,
+        .excel-table textarea {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            font-family: inherit;
+            padding: 1px 3px;
+            height: 18px;
+            line-height: 18px;
+            cursor: text;
+        }
+
+        .excel-table input:hover,
+        .excel-table select:hover,
+        .excel-table textarea:hover {
+            background: #f0f4ff;
+        }
+
+        .excel-table textarea {
+            resize: vertical;
+            min-height: 18px;
+            max-height: 60px;
+            line-height: 1.2;
+        }
+
+        .day-row { background: #c3dafe !important; }
+        .day-row td {
+            background: #c3dafe !important;
+            font-weight: 600;
+            border: 1px solid #90b8f8 !important;
+            padding: 3px 6px !important;
+            height: 24px !important;
+        }
+
+        .day-row.weekend { background: #e9d5ff !important; }
+        .day-row.weekend td { background: #e9d5ff !important; border: 1px solid #c084fc !important; }
+        .weekend-entry { background: #faf5ff !important; }
+
+        .project-code-cell { background: #fef08a !important; font-weight: 600; }
+
+        .add-day-row {
+            background: #f7fafc !important;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-day-row td {
+            background: #f7fafc !important;
+            text-align: center !important;
+            padding: 4px !important;
+            height: 28px !important;
+        }
+
+        .add-day-row:hover { background: #e2e8f0 !important; }
+        .add-day-row:hover td { background: #e2e8f0 !important; }
+
+        .add-day-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+
+        .add-day-btn:hover { background: #5568d3; transform: scale(1.1); }
+
+        .action-cell { display: flex; gap: 5px; justify-content: center; }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover { background: #e2e8f0; }
+
+        .hours-warning {
+            background: #fee2e2 !important;
+            color: #991b1b !important;
+            font-weight: bold !important;
+        }
+
+        .hours-total-warning {
+            background: #fca5a5 !important;
+            color: #7f1d1d !important;
+        }
+
+        .hidden { display: none; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .date-picker {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: flex-start; }
+            .month-selector { flex-direction: column; align-items: stretch; }
+            .total-badge { margin-left: 0; }
+            .table-wrapper { max-height: 60vh; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Cargando datos...</div>
+        </div>
+    </div>
+
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <h1>Control de Horas</h1>
+            <p style="color: #666; margin: 15px 0;">🚀 Conectado con Supabase</p>
+            
+            <div class="login-buttons">
+                <button class="btn btn-primary" onclick="showOperatorLogin()">🔧 Soy Operario</button>
+                <button class="btn btn-success" onclick="loginAsAdmin()">👔 Soy Administrador</button>
+            </div>
+
+            <div id="operatorSelect" class="hidden" style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Selecciona tu nombre:</label>
+                <select id="operatorName" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 6px; margin-bottom: 15px;">
+                    <option value="">-- Selecciona --</option>
+                </select>
+                <button class="btn btn-primary" style="width: 100%;" onclick="loginAsOperator()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="operatorDashboard" class="container hidden">
+        <div class="header">
+            <div class="header-title">📋 Control d'Hores</div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="user-badge" id="currentOperator"></div>
+                <button class="btn btn-secondary btn-small" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <div class="month-selector">
+            <label style="font-weight: 600;">Ver mes:</label>
+            <select id="monthSelector" onchange="loadMonthData()"></select>
+            <select id="yearSelector" onchange="loadMonthData()"></select>
+            <div class="total-badge">
+                Total: <span id="monthTotalHours">0</span> horas
+            </div>
+        </div>
+
+        <div class="excel-container">
+            <div class="excel-toolbar">
+                <button class="btn btn-success btn-small" onclick="openAddRowModal()">➕ Añadir Fila</button>
+                <button class="btn btn-primary btn-small" onclick="saveAllChanges()">💾 Guardar</button>
+                <button class="btn btn-secondary btn-small" onclick="loadMonthData()">🔄 Recargar</button>
+                <button class="btn btn-success btn-small" onclick="exportMonthToExcel()">📥 Exportar Excel</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Día</th>
+                            <th style="width: 90px;">Fecha</th>
+                            <th style="width: 120px;">Ref</th>
+                            <th style="width: 300px; min-width: 200px;">Descripció</th>
+                            <th style="width: 70px;">Hores</th>
+                            <th style="width: 100px;">Material</th>
+                            <th style="width: 80px;">Hores totals</th>
+                            <th style="width: 80px;">Dietes</th>
+                            <th style="width: 80px;">KM Particular</th>
+                            <th style="width: 80px;">Km empresa</th>
+                            <th style="width: 80px;">Vehicle</th>
+                            <th style="width: 80px;">Pernoctes</th>
+                            <th style="width: 80px;">Varis</th>
+                            <th style="width: 80px;">Hores extres</th>
+                            <th style="width: 100px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="excelTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminDashboard" class="container hidden">
+        <div class="header">
+            <div class="header-title">👔 Panel de Administración</div>
+            <button class="btn btn-secondary btn-small" onclick="logout()">Cerrar Sesión</button>
+        </div>
+
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h2>Vista Administrador</h2>
+            <p style="color: #64748b; margin: 20px 0;">Accede a Supabase para ver todos los datos:</p>
+            <a href="https://supabase.com/dashboard/project/girdsmhfejfzidurjext" target="_blank" class="btn btn-primary">
+                📊 Abrir Dashboard Supabase
+            </a>
+            <div style="margin-top: 30px;">
+                <button class="btn btn-success" onclick="exportAllToExcel()">📥 Exportar Todos los Datos</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="datePickerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Selecciona la fecha</h3>
+                <button class="close-modal" onclick="closeDatePicker()">&times;</button>
+            </div>
+            <input type="date" id="datePicker" class="date-picker">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="confirmDate()">Aceptar</button>
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeDatePicker()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://girdsmhfejfzidurjext.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpcmRzbWhmZWpmemlkdXJqZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMjIwMDIsImV4cCI6MjA4Nzc5ODAwMn0.UTiZTg3DdYTYEiwllqUL4C28pjWJ01NOdTlfKEtIukg';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+        let currentRole = null;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let unsavedChanges = new Map();
+        let PROJECT_CODES = [];
+        let OPERATORS_LIST = [];
+
+        function showLoadingIndicator() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoadingIndicator() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        async function loadOperatorsAndProjects() {
+            try {
+                showLoadingIndicator();
+                
+                const { data: operators } = await supabase.from('operators').select('name');
+                OPERATORS_LIST = operators.map(op => op.name);
+                
+                const { data: projects } = await supabase.from('projects').select('code');
+                PROJECT_CODES = projects.map(p => p.code);
+                
+                hideLoadingIndicator();
+                updateOperatorSelector();
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al cargar datos');
+            }
+        }
+
+        function updateOperatorSelector() {
+            const selector = document.getElementById('operatorName');
+            if (!selector) return;
+            
+            selector.innerHTML = '<option value="">-- Selecciona --</option>' +
+                OPERATORS_LIST.map(name => '<option value="' + name + '">' + name + '</option>').join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMonthYearSelectors();
+            
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const activeElement = document.activeElement;
+                    if (activeElement.tagName === 'TEXTAREA' && e.shiftKey) return;
+                    if (currentRole === 'operator' && unsavedChanges.size > 0) {
+                        e.preventDefault();
+                        saveAllChanges();
+                    }
+                }
+            });
+        });
+
+        async function showOperatorLogin() {
+            document.getElementById('operatorSelect').classList.remove('hidden');
+            await loadOperatorsAndProjects();
+        }
+
+        async function loginAsOperator() {
+            const operatorName = document.getElementById('operatorName').value;
+            if (!operatorName) {
+                alert('Por favor selecciona tu nombre');
+                return;
+            }
+            
+            currentUser = operatorName;
+            currentRole = 'operator';
+            document.getElementById('currentOperator').textContent = operatorName;
+            
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('operatorDashboard').classList.remove('hidden');
+            
+            await loadMonthData();
+        }
+
+        function loginAsAdmin() {
+            currentRole = 'admin';
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.remove('hidden');
+        }
+
+        function logout() {
+            if (unsavedChanges.size > 0) {
+                if (!confirm('Tienes cambios sin guardar. ¿Seguro que quieres salir?')) return;
+            }
+
+            currentUser = null;
+            currentRole = null;
+            unsavedChanges.clear();
+            
+            document.getElementById('operatorDashboard').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('operatorSelect').classList.add('hidden');
+            document.getElementById('operatorName').value = '';
+        }
+
+        function initializeMonthYearSelectors() {
+            const monthSelector = document.getElementById('monthSelector');
+            const yearSelector = document.getElementById('yearSelector');
+            
+            if (!monthSelector || !yearSelector) return;
+            
+            const months = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Septembre', 'Octubre', 'Novembre', 'Desembre'];
+            
+            const currentDate = new Date();
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+            
+            months.forEach(function(month, index) {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = month;
+                if (index === currentMonth) option.selected = true;
+                monthSelector.appendChild(option);
+            });
+            
+            for (let i = 0; i < 3; i++) {
+                const year = currentYear - i;
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (i === 0) option.selected = true;
+                yearSelector.appendChild(option);
+            }
+        }
+
+        async function loadMonthData() {
+            try {
+                showLoadingIndicator();
+                
+                currentMonth = parseInt(document.getElementById('monthSelector').value);
+                currentYear = parseInt(document.getElementById('yearSelector').value);
+
+                const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+                const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+
+                const { data, error } = await supabase
+                    .from('time_entries')
+                    .select('*')
+                    .eq('operator', currentUser)
+                    .gte('date', startDate)
+                    .lte('date', endDate)
+                    .order('date', { ascending: true });
+
+                if (error) throw error;
+
+                const entriesByDate = {};
+                data.forEach(entry => {
+                    if (!entriesByDate[entry.date]) {
+                        entriesByDate[entry.date] = [];
+                    }
+                    entriesByDate[entry.date].push(entry);
+                });
+
+                const totalHours = data.reduce((sum, e) => sum + parseFloat(e.hours || 0), 0);
+                document.getElementById('monthTotalHours').textContent = totalHours.toFixed(2);
+
+                renderExcelTable(entriesByDate);
+                unsavedChanges.clear();
+                
+                hideLoadingIndicator();
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al cargar datos del mes');
+            }
+        }
+
+        function renderExcelTable(entriesByDate) {
+            const tbody = document.getElementById('excelTableBody');
+            tbody.innerHTML = '';
+
+            const dates = Object.keys(entriesByDate).sort();
+
+            dates.forEach(dateStr => {
+                const entries = entriesByDate[dateStr];
+                const date = new Date(dateStr + 'T00:00:00');
+                const dayNum = date.getDate();
+                const dayName = date.toLocaleDateString('ca-ES', { weekday: 'long' });
+                const dayOfWeek = date.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                const dayTotalHours = entries.reduce((sum, e) => sum + parseFloat(e.hours || 0), 0);
+                const horesExtres = Math.max(0, dayTotalHours - 8);
+                const totalWarningClass = dayTotalHours > 12 ? 'hours-total-warning' : '';
+                
+                const firstEntry = entries[0];
+                const hoursWarningClass = (firstEntry.hours && parseFloat(firstEntry.hours) > 12) ? 'hours-warning' : '';
+
+                const firstRow = document.createElement('tr');
+                firstRow.className = 'day-row' + (isWeekend ? ' weekend' : '');
+                firstRow.dataset.entryId = firstEntry.id;
+                
+                if (isWeekend) firstRow.classList.add('weekend-entry');
+
+                firstRow.innerHTML = `
+                    <td rowspan="${entries.length + 1}" style="vertical-align: top;">${dayNum}<br><small>${dayName}</small></td>
+                    <td>${dateStr.substring(8,10)}-${dateStr.substring(5,7)}</td>
+                    <td class="project-code-cell">
+                        <select onchange="markUnsaved(${firstEntry.id}, 'project_code', this.value)" onblur="autoSaveOnBlur()">
+                            <option value="">--</option>
+                            ${PROJECT_CODES.map(code => '<option value="' + code + '" ' + (firstEntry.project_code === code ? 'selected' : '') + '>' + code + '</option>').join('')}
+                        </select>
+                    </td>
+                    <td><textarea onchange="markUnsaved(${firstEntry.id}, 'description', this.value)" onblur="autoSaveOnBlur()">${firstEntry.description || ''}</textarea></td>
+                    <td><input type="number" step="0.25" min="0" max="18" value="${firstEntry.hours || ''}" class="${hoursWarningClass}" onchange="if(markUnsaved(${firstEntry.id}, 'hours', this.value)) recalculateDayTotals()" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="text" value="${firstEntry.material || ''}" onchange="markUnsaved(${firstEntry.id}, 'material', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td style="text-align: center; font-weight: 600;" class="${totalWarningClass}">${dayTotalHours.toFixed(2)}</td>
+                    <td><input type="text" value="${firstEntry.dietes || ''}" onchange="markUnsaved(${firstEntry.id}, 'dietes', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="number" step="1" min="0" value="${firstEntry.km_particular || ''}" onchange="markUnsaved(${firstEntry.id}, 'km_particular', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="number" step="1" min="0" value="${firstEntry.km_empresa || ''}" onchange="markUnsaved(${firstEntry.id}, 'km_empresa', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="text" value="${firstEntry.vehicle || ''}" onchange="markUnsaved(${firstEntry.id}, 'vehicle', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="text" value="${firstEntry.pernoctes || ''}" onchange="markUnsaved(${firstEntry.id}, 'pernoctes', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td><input type="text" value="${firstEntry.varis || ''}" onchange="markUnsaved(${firstEntry.id}, 'varis', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                    <td style="text-align: center; font-weight: 600; background: #fff3cd;">${horesExtres > 0 ? horesExtres.toFixed(2) : ''}</td>
+                    <td>
+                        <div class="action-cell">
+                            <button class="btn-icon" onclick="deleteEntry(${firstEntry.id})" title="Eliminar">🗑️</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(firstRow);
+
+                for (let i = 1; i < entries.length; i++) {
+                    const entry = entries[i];
+                    const row = createEntryRow(entry, isWeekend);
+                    tbody.appendChild(row);
+                }
+
+                const addRowBtn = document.createElement('tr');
+                addRowBtn.className = 'add-day-row';
+                addRowBtn.innerHTML = `
+                    <td colspan="14" style="text-align: center;">
+                        <button class="add-day-btn" onclick="addRowToDay('${dateStr}')" title="Añadir fila">+</button>
+                    </td>
+                `;
+                tbody.appendChild(addRowBtn);
+            });
+
+            if (dates.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; padding: 40px; color: #64748b;">No hay registros. Añade horas para empezar.</td></tr>';
+            }
+        }
+
+        function createEntryRow(entry, isWeekend) {
+            const row = document.createElement('tr');
+            row.dataset.entryId = entry.id;
+            
+            if (isWeekend) row.className = 'weekend-entry';
+
+            const hoursWarningClass = (entry.hours && parseFloat(entry.hours) > 12) ? 'hours-warning' : '';
+
+            row.innerHTML = `
+                <td></td>
+                <td class="project-code-cell">
+                    <select onchange="markUnsaved(${entry.id}, 'project_code', this.value)" onblur="autoSaveOnBlur()">
+                        <option value="">--</option>
+                        ${PROJECT_CODES.map(code => '<option value="' + code + '" ' + (entry.project_code === code ? 'selected' : '') + '>' + code + '</option>').join('')}
+                    </select>
+                </td>
+                <td><textarea onchange="markUnsaved(${entry.id}, 'description', this.value)" onblur="autoSaveOnBlur()">${entry.description || ''}</textarea></td>
+                <td><input type="number" step="0.25" min="0" max="18" value="${entry.hours || ''}" class="${hoursWarningClass}" onchange="if(markUnsaved(${entry.id}, 'hours', this.value)) recalculateDayTotals()" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="text" value="${entry.material || ''}" onchange="markUnsaved(${entry.id}, 'material', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td></td>
+                <td><input type="text" value="${entry.dietes || ''}" onchange="markUnsaved(${entry.id}, 'dietes', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="number" step="1" min="0" value="${entry.km_particular || ''}" onchange="markUnsaved(${entry.id}, 'km_particular', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="number" step="1" min="0" value="${entry.km_empresa || ''}" onchange="markUnsaved(${entry.id}, 'km_empresa', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="text" value="${entry.vehicle || ''}" onchange="markUnsaved(${entry.id}, 'vehicle', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="text" value="${entry.pernoctes || ''}" onchange="markUnsaved(${entry.id}, 'pernoctes', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td><input type="text" value="${entry.varis || ''}" onchange="markUnsaved(${entry.id}, 'varis', this.value)" onblur="autoSaveOnBlur()" onclick="this.select()"></td>
+                <td></td>
+                <td>
+                    <div class="action-cell">
+                        <button class="btn-icon" onclick="deleteEntry(${entry.id})" title="Eliminar">🗑️</button>
+                    </div>
+                </td>
+            `;
+
+            return row;
+        }
+
+        function recalculateDayTotals() {
+            setTimeout(async function() {
+                await loadMonthData();
+            }, 100);
+        }
+
+        function markUnsaved(entryId, field, value) {
+            if (field === 'hours') {
+                const hours = parseFloat(value);
+                
+                if (isNaN(hours) || hours < 0) {
+                    alert('⚠️ El número de horas debe ser un valor positivo');
+                    return false;
+                }
+                
+                if (hours > 18) {
+                    alert('❌ No se pueden registrar más de 18 horas');
+                    event.target.value = 18;
+                    value = 18;
+                }
+                
+                if (hours > 12 && hours <= 18) {
+                    if (!confirm('⚠️ Estás registrando ' + hours + ' horas. ¿Estás seguro?')) {
+                        return false;
+                    }
+                }
+            }
+            
+            if (!unsavedChanges.has(entryId)) {
+                unsavedChanges.set(entryId, {});
+            }
+
+            const changes = unsavedChanges.get(entryId);
+            changes[field] = value;
+            unsavedChanges.set(entryId, changes);
+            
+            return true;
+        }
+
+        let autoSaveTimeout;
+        function autoSaveOnBlur() {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(function() {
+                if (unsavedChanges.size > 0) {
+                    saveAllChanges();
+                }
+            }, 300);
+        }
+
+        async function addRowToDay(dateStr) {
+            try {
+                showLoadingIndicator();
+                
+                const { data, error } = await supabase
+                    .from('time_entries')
+                    .insert([{
+                        operator: currentUser,
+                        date: dateStr,
+                        project_code: '',
+                        description: '',
+                        hours: 0,
+                        material: '',
+                        dietes: '',
+                        km_particular: null,
+                        km_empresa: null,
+                        vehicle: '',
+                        pernoctes: '',
+                        varis: ''
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                await loadMonthData();
+                showNotification('✓ Nueva fila añadida');
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al añadir fila');
+            }
+        }
+
+        function openAddRowModal() {
+            document.getElementById('datePickerModal').classList.add('show');
+            const datePicker = document.getElementById('datePicker');
+            
+            const defaultDate = new Date(currentYear, currentMonth, 1);
+            datePicker.value = defaultDate.toISOString().split('T')[0];
+            datePicker.focus();
+        }
+
+        function closeDatePicker() {
+            document.getElementById('datePickerModal').classList.remove('show');
+        }
+
+        async function confirmDate() {
+            const dateStr = document.getElementById('datePicker').value;
+            if (!dateStr) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+
+            closeDatePicker();
+            await addRowToDay(dateStr);
+        }
+
+        async function saveAllChanges() {
+            if (unsavedChanges.size === 0) {
+                showNotification('No hay cambios para guardar');
+                return;
+            }
+
+            try {
+                showLoadingIndicator();
+                let successCount = 0;
+                
+                for (const [entryId, changes] of unsavedChanges) {
+                    const { error } = await supabase
+                        .from('time_entries')
+                        .update(changes)
+                        .eq('id', entryId);
+
+                    if (!error) successCount++;
+                }
+
+                unsavedChanges.clear();
+                await loadMonthData();
+                showNotification('✓ ' + successCount + ' cambios guardados');
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al guardar cambios');
+            }
+        }
+
+        async function deleteEntry(entryId) {
+            if (!confirm('¿Eliminar este registro?')) return;
+
+            try {
+                showLoadingIndicator();
+                
+                const { error } = await supabase
+                    .from('time_entries')
+                    .delete()
+                    .eq('id', entryId);
+
+                if (error) throw error;
+
+                await loadMonthData();
+                showNotification('✓ Registro eliminado');
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al eliminar');
+            }
+        }
+
+        async function exportMonthToExcel() {
+            try {
+                showLoadingIndicator();
+                
+                const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+                const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+
+                const { data } = await supabase
+                    .from('time_entries')
+                    .select('*')
+                    .eq('operator', currentUser)
+                    .gte('date', startDate)
+                    .lte('date', endDate)
+                    .order('date', { ascending: true });
+
+                if (!data || data.length === 0) {
+                    hideLoadingIndicator();
+                    alert('No hay datos para exportar');
+                    return;
+                }
+
+                const months = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Septembre', 'Octubre', 'Novembre', 'Desembre'];
+                const monthName = months[currentMonth];
+
+                let csv = 'Fecha,Proyecto,Descripción,Horas,Material,Dietes,KM Particular,KM Empresa,Vehicle,Pernoctes,Varis\n';
+                
+                data.forEach(entry => {
+                    const desc = (entry.description || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                    csv += '"' + entry.date + '",';
+                    csv += '"' + (entry.project_code || '') + '",';
+                    csv += '"' + desc + '",';
+                    csv += (entry.hours || 0) + ',';
+                    csv += '"' + (entry.material || '') + '",';
+                    csv += '"' + (entry.dietes || '') + '",';
+                    csv += (entry.km_particular || '') + ',';
+                    csv += (entry.km_empresa || '') + ',';
+                    csv += '"' + (entry.vehicle || '') + '",';
+                    csv += '"' + (entry.pernoctes || '') + '",';
+                    csv += '"' + (entry.varis || '') + '"\n';
+                });
+
+                const monthTotal = data.reduce((sum, e) => sum + parseFloat(e.hours || 0), 0);
+                csv += '\n,,"TOTAL MES:",' + monthTotal.toFixed(2) + '\n';
+
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                const filename = 'hores_' + currentUser.replace(/\s+/g, '_') + '_' + monthName + '_' + currentYear + '.csv';
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                hideLoadingIndicator();
+                showNotification('✓ Excel exportado');
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al exportar');
+            }
+        }
+
+        async function exportAllToExcel() {
+            try {
+                showLoadingIndicator();
+                
+                const { data } = await supabase
+                    .from('time_entries')
+                    .select('*')
+                    .order('date', { ascending: true });
+
+                let csv = 'Operario,Fecha,Proyecto,Descripción,Horas,Material,Dietes,KM Particular,KM Empresa,Vehicle,Pernoctes,Varis\n';
+                
+                data.forEach(entry => {
+                    csv += '"' + (entry.operator || '') + '",';
+                    csv += '"' + entry.date + '",';
+                    csv += '"' + (entry.project_code || '') + '",';
+                    csv += '"' + (entry.description || '').replace(/"/g, '""') + '",';
+                    csv += (entry.hours || 0) + ',';
+                    csv += '"' + (entry.material || '') + '",';
+                    csv += '"' + (entry.dietes || '') + '",';
+                    csv += (entry.km_particular || '') + ',';
+                    csv += (entry.km_empresa || '') + ',';
+                    csv += '"' + (entry.vehicle || '') + '",';
+                    csv += '"' + (entry.pernoctes || '') + '",';
+                    csv += '"' + (entry.varis || '') + '"\n';
+                });
+
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'control_horas_completo.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                hideLoadingIndicator();
+                showNotification('✓ Archivo descargado');
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoadingIndicator();
+                alert('Error al exportar');
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 2000;
+                font-weight: 600;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(function() {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(function() {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
